@@ -1,0 +1,224 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #2c3e50; /* Fondo azul oscuro */
+  color: #ecf0f1; /* Texto blanco grisáceo */
+  overflow: hidden; /* Evita scroll no deseado */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh; /* Ocupa toda la altura de la ventana */
+}
+
+/* Estilos de la pantalla de inicio (login/registro) */
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px; /* Ancho máximo para el formulario */
+  background: #34495e; /* Fondo del formulario */
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Sombra para el formulario */
+  text-align: center;
+}
+
+.game-title {
+  font-size: 3em;
+  color: #1abc9c; /* Turquesa brillante */
+  margin-bottom: 10px;
+}
+
+.tagline {
+  font-size: 1.2em;
+  color: #bdc3c7;
+  margin-bottom: 30px;
+}
+
+.input-group {
+  width: 100%;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.input-group label {
+  font-size: 1em;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #49607a; /* Fondo de los campos de entrada */
+  color: #ecf0f1;
+  font-size: 1em;
+  box-sizing: border-box; /* Incluye padding y borde en el ancho */
+}
+
+.join-button, .register-button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 10px;
+}
+
+.join-button {
+  background-color: #2ecc71; /* Verde para iniciar sesión */
+  color: white;
+}
+
+.join-button:hover {
+  background-color: #27ae60;
+}
+
+.register-button {
+  background-color: #3498db; /* Azul para registrarse */
+  color: white;
+}
+
+.register-button:hover {
+  background-color: #2980b9;
+}
+
+.start-message {
+  margin-top: 20px;
+  font-size: 0.9em;
+  color: #e74c3c; /* Rojo para mensajes de error/éxito */
+}
+
+/* Estilos del contenedor principal del juego */
+.game-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background-color: #34495e; /* Fondo del área de juego */
+  overflow: hidden;
+}
+
+/* Banner de información en la parte superior del juego */
+.info-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(44, 62, 80, 0.95); /* Fondo semitransparente oscuro */
+  color: #ecf0f1;
+  padding: 10px 20px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7); /* Sombra para resaltar */
+  z-index: 100;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+}
+
+.info-banner h3 {
+  margin: 0;
+  color: #1abc9c;
+}
+
+.info-banner p {
+  margin: 0 10px;
+}
+
+.game-message {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  background-color: #27ae60;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  animation: fadeOut 3s forwards;
+  z-index: 101;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
+
+
+/* Contenido principal del juego (contenedor del canvas) */
+.main-content {
+  flex-grow: 1; /* Ocupa el espacio restante en la columna */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 60px; /* Deja espacio para el banner superior */
+  overflow: hidden; /* Evita scroll si el canvas es más grande que el contenedor */
+  background-color: #FFFFFF; /* Fondo blanco para el contenedor del canvas */
+}
+
+/* Estilos del elemento Canvas */
+.pixel-canvas {
+  background-color: #FFFFFF; /* Fondo blanco para el canvas */
+  border: 2px solid #1abc9c; /* Borde alrededor del lienzo */
+  image-rendering: pixelated; /* Esencial para que los píxeles no se vean borrosos al escalar */
+  width: 100%; /* El canvas ocupará el 100% del ancho de su contenedor */
+  height: 100%; /* El canvas ocupará el 100% de la altura de su contenedor */
+  display: block; /* Elimina márgenes extra si los hay */
+  cursor: crosshair; /* Cursor para indicar que se puede dibujar */
+}
+
+/* Selector de color */
+.color-selector {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #34495e;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid #1abc9c;
+}
+
+.color-selector input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .info-banner {
+    flex-direction: column;
+    padding: 10px;
+  }
+  .info-banner p {
+    margin: 5px 0;
+  }
+  .start-screen {
+    padding: 20px;
+  }
+  .game-title {
+    font-size: 2.5em;
+  }
+  .tagline {
+    font-size: 1em;
+  }
+  .join-button, .register-button {
+    padding: 10px;
+    font-size: 1em;
+  }
+}

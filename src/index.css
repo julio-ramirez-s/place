@@ -1,0 +1,28 @@
+/* Limpia el margen y el padding por defecto del body */
+body {
+  margin: 0;
+  padding: 0;
+  /* Configura la fuente base para toda la aplicación */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Centra el contenido vertical y horizontalmente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* Asegura que ocupe toda la altura de la ventana */
+  min-height: 100vh;
+  /* Color de fondo y texto base */
+  background-color: #333;
+  color: #fff;
+  /* Permite que el contenido se apile en una columna si es necesario */
+  flex-direction: column;
+}
+
+/* Otros estilos para el código */
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
