@@ -4,8 +4,11 @@ import io from 'socket.io-client';
 
 // --- Constantes del Lienzo ---
 const TILE_SIZE = 8; // Tamaño de cada píxel en el lienzo
-const WORLD_WIDTH_TILES = 250; // Ancho del mundo en píxeles (80 * 8 = 640px)
-const WORLD_HEIGHT_TILES = 200; // Alto del mundo en píxeles (60 * 8 = 480px)
+const WORLD_WIDTH_TILES = 80; // Ancho del mundo en píxeles (80 * 8 = 640px)
+const WORLD_HEIGHT_TILES = 60; // Alto del mundo en píxeles (60 * 8 = 480px)
+
+// URL del servidor desplegado en Render
+const SERVER_URL = 'https://place-server.onrender.com'; 
 
 function App() {
   // --- Estados para la Autenticación ---
@@ -30,8 +33,8 @@ function App() {
 
   // --- Efecto para la conexión y manejo de Sockets ---
   useEffect(() => {
-    console.log('Intentando conectar al servidor Socket.IO...');
-    const newSocket = io(); // Conecta al servidor Socket.IO
+    console.log('Intentando conectar al servidor Socket.IO en:', SERVER_URL);
+    const newSocket = io(SERVER_URL); // Conecta al servidor Socket.IO usando la URL de Render
 
     setSocket(newSocket); // Guarda la instancia del socket en el estado
 
@@ -200,7 +203,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isSpacebarDrawing, sendPlacePixelRequest]); // Depende de sendPlacePixelRequest para el dibujo inicial
+  }, [isSpacebarDrawing, sendPlacePixelRequest]);
 
   // Efecto para dibujar con la barra espaciadora (continuamente mientras está presionada)
   useEffect(() => {
