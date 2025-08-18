@@ -4,8 +4,8 @@ import io from 'socket.io-client';
 
 // --- Constantes del Lienzo ---
 const TILE_SIZE = 8; // Tamaño de cada píxel en el lienzo
-const WORLD_WIDTH_TILES = 80; // Ancho del mundo en píxeles (80 * 8 = 640px)
-const WORLD_HEIGHT_TILES = 60; // Alto del mundo en píxeles (60 * 8 = 480px)
+const WORLD_WIDTH_TILES = 250; // Ancho del mundo en píxeles (80 * 8 = 640px)
+const WORLD_HEIGHT_TILES = 200; // Alto del mundo en píxeles (60 * 8 = 480px)
 
 // URL del servidor desplegado en Render
 const SERVER_URL = 'https://place-server.onrender.com'; 
