@@ -1,319 +1,201 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import './App.css';
+import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import { Heart, Home, Moon, Sun, Utensils, Tv, Cat, Dog, Gift } from 'lucide-react';
+import './App.css';
 
-// --- Constantes del Lienzo ---
-const TILE_SIZE = 8; // Tamaño de cada píxel en el lienzo
-const WORLD_WIDTH_TILES = 250; // Ancho del mundo en píxeles (80 * 8 = 640px)
-const WORLD_HEIGHT_TILES = 200; // Alto del mundo en píxeles (60 * 8 = 480px)
+// Conexión al backend (Asegúrate de que coincida con el puerto del server.js)
+const socket = io('https://place-server.onrender.com');
 
-// URL del servidor desplegado en Render
-const SERVER_URL = 'https://place-server.onrender.com'; 
+// Configuración de las habitaciones
+const ROOMS = [
+  { id: 'bedroom', name: 'Dormitorio', icon: <Moon size={24} />, color: 'var(--color-bedroom)' },
+  { id: 'kitchen', name: 'Cocina', icon: <Utensils size={24} />, color: 'var(--color-kitchen)' },
+  { id: 'living', name: 'Sala', icon: <Tv size={24} />, color: 'var(--color-living)' },
+  { id: 'garden', name: 'Jardín', icon: <Sun size={24} />, color: 'var(--color-garden)' },
+];
 
 function App() {
-  // --- Estados para la Autenticación ---
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [authMessage, setAuthMessage] = useState(''); // Mensajes de éxito o error de autenticación
+  const [hasJoined, setHasJoined] = useState(false);
+  const [gameState, setGameState] = useState(null);
+  const [myName, setMyName] = useState('');
+  const [notification, setNotification] = useState('');
 
-  // --- Estados del Juego de Píxeles ---
-  const [socket, setSocket] = useState(null); // Instancia del socket de Socket.IO
-  const [pixels, setPixels] = useState([]); // Almacena todos los píxeles colocados en el lienzo
-  const [pixelCredits, setPixelCredits] = useState(0); // Créditos disponibles para colocar píxeles
-  const [selectedColor, setSelectedColor] = useState('#ff0000'); // Color actual seleccionado para el píxel
-  
-  // Nuevos estados y referencias para el dibujo continuo
-  const [isDrawing, setIsDrawing] = useState(false); // Verdadero si el clic del ratón está presionado
-  const [isSpacebarDrawing, setIsSpacebarDrawing] = useState(false); // Verdadero si la barra espaciadora está presionada
-  const lastPixelPlacedRef = useRef({ x: -1, y: -1 }); // Para evitar colocar múltiples píxeles en la misma celda al arrastrar
-  const mouseCoordsOnCanvasRef = useRef({ x: -1, y: -1 }); // Guarda las últimas coordenadas del ratón en el lienzo
-
-  const canvasRef = useRef(null); // Referencia al elemento canvas del DOM
-
-  // --- Efecto para la conexión y manejo de Sockets ---
+  // --- EFECTOS DE SOCKET ---
   useEffect(() => {
-    console.log('Intentando conectar al servidor Socket.IO en:', SERVER_URL);
-    const newSocket = io(SERVER_URL); // Conecta al servidor Socket.IO usando la URL de Render
-
-    setSocket(newSocket); // Guarda la instancia del socket en el estado
-
-    // Evento: Autenticación exitosa (registro o inicio de sesión)
-    newSocket.on('authSuccess', (message) => {
-      console.log('Auth Success:', message);
-      setAuthMessage(message);
+    // Escuchar actualizaciones del estado del juego
+    socket.on('game_update', (data) => {
+      setGameState(data);
     });
 
-    // Evento: Error de autenticación
-    newSocket.on('authError', (message) => {
-      console.error('Auth Error:', message);
-      setAuthMessage(message);
+    // Escuchar notificaciones de texto
+    socket.on('notification', (msg) => {
+      setNotification(msg);
+      setTimeout(() => setNotification(''), 3000);
     });
 
-    // Evento: Inicio de sesión exitoso
-    newSocket.on('loginSuccess', ({ username, pixelCredits }) => {
-      console.log('Login Success - Username:', username, 'Pixel Credits:', pixelCredits);
-      setUsername(username);
-      setPixelCredits(pixelCredits);
-      setIsLoggedIn(true);
-      setAuthMessage('');
-    });
-
-    // Evento: Recepción de todos los píxeles del lienzo (al iniciar sesión)
-    newSocket.on('allPixels', (initialPixels) => {
-      console.log('Received all pixels:', initialPixels.length, 'pixels');
-      setPixels(initialPixels);
-    });
-
-    // Evento: Un píxel ha sido colocado (por cualquier usuario)
-    newSocket.on('pixelPlaced', (pixelData) => {
-      console.log('Pixel placed:', pixelData);
-      setPixels(prevPixels => {
-        const existingIndex = prevPixels.findIndex(p => p.x === pixelData.x && p.y === pixelData.y);
-        if (existingIndex !== -1) {
-          const newPixels = [...prevPixels];
-          newPixels[existingIndex] = pixelData;
-          return newPixels;
-        } else {
-          return [...prevPixels, pixelData];
-        }
-      });
-    });
-
-    // Evento: Actualización de créditos de píxeles del usuario
-    newSocket.on('updatePixelCredits', ({ pixelCredits }) => {
-      console.log('Updated pixel credits:', pixelCredits);
-      setPixelCredits(pixelCredits);
-    });
-
-    // Evento: Error al colocar un píxel
-    newSocket.on('pixelError', (message) => {
-      console.error('Pixel Error:', message);
-      setAuthMessage(message);
-    });
-
-    // Limpieza al desmontar el componente
-    return () => {
-      console.log('Cerrando conexión de socket...');
-      newSocket.close();
-    };
-  }, []);
-
-  // --- Efecto para dibujar en el Canvas cuando los píxeles cambian ---
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const ctx = canvasRef.current.getContext('2d');
-
-    ctx.clearRect(0, 0, WORLD_WIDTH_TILES * TILE_SIZE, WORLD_HEIGHT_TILES * TILE_SIZE);
-    
-    pixels.forEach(pixel => {
-      ctx.fillStyle = pixel.color;
-      ctx.fillRect(pixel.x * TILE_SIZE, pixel.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-    });
-    console.log('Canvas redrawn with', pixels.length, 'pixels.');
-  }, [pixels]);
-
-  // --- Función para enviar la solicitud de colocar un píxel al servidor ---
-  const sendPlacePixelRequest = useCallback((x, y) => {
-    if (!isLoggedIn || !socket) {
-      setAuthMessage('Debes iniciar sesión para colocar píxeles.');
-      return;
-    }
-
-    // Evitar colocar múltiples píxeles en la misma celda si se arrastra muy rápido
-    if (lastPixelPlacedRef.current.x === x && lastPixelPlacedRef.current.y === y) {
-      return;
-    }
-
-    // Actualiza la última posición de píxel colocada
-    lastPixelPlacedRef.current = { x, y };
-
-    // Emite el evento 'placePixel' al servidor con la posición y el color
-    socket.emit('placePixel', { x, y, color: selectedColor });
-  }, [isLoggedIn, socket, selectedColor]);
-
-  // --- Función para obtener las coordenadas del ratón en el canvas ---
-  const getCanvasCoordinates = useCallback((e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: -1, y: -1 };
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const x = Math.floor(((e.clientX - rect.left) * scaleX) / TILE_SIZE);
-    const y = Math.floor(((e.clientY - rect.top) * scaleY) / TILE_SIZE);
-
-    return { x, y };
-  }, []);
-
-  // --- Manejador para el Click Inicial en el Canvas (mousedown) ---
-  const handleCanvasMouseDown = useCallback((e) => {
-    if (e.button === 0) { // Botón izquierdo del ratón
-      setIsDrawing(true);
-      const { x, y } = getCanvasCoordinates(e);
-      sendPlacePixelRequest(x, y); // Coloca el primer píxel inmediatamente
-    }
-  }, [getCanvasCoordinates, sendPlacePixelRequest]);
-
-  // --- Manejador para el Movimiento del Ratón (mousemove) ---
-  const handleCanvasMouseMove = useCallback((e) => {
-    const { x, y } = getCanvasCoordinates(e);
-    mouseCoordsOnCanvasRef.current = { x, y }; // Actualiza las últimas coordenadas del ratón
-
-    if (isDrawing) {
-      // Solo coloca el píxel si las coordenadas son válidas y diferentes de la última
-      if (x >= 0 && x < WORLD_WIDTH_TILES && y >= 0 && y < WORLD_HEIGHT_TILES) {
-        sendPlacePixelRequest(x, y);
+    // Escuchar efectos especiales (Besos)
+    socket.on('special_effect', (data) => {
+      if (data.type === 'kiss') {
+        setNotification(`¡${data.from} te envió un beso! 💋`);
+        // Aquí podrías disparar confeti o una animación CSS
+        setTimeout(() => setNotification(''), 4000);
       }
-    }
-  }, [isDrawing, getCanvasCoordinates, sendPlacePixelRequest]);
-
-  // --- Manejador para Soltar el Clic (mouseup) ---
-  const handleCanvasMouseUp = useCallback(() => {
-    setIsDrawing(false);
-    lastPixelPlacedRef.current = { x: -1, y: -1 }; // Resetear la última posición para el clic
-  }, []);
-
-  // --- Manejador para Teclas (keydown y keyup) ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.code === 'Space' && !isSpacebarDrawing) {
-        e.preventDefault(); // Evita que la barra espaciadora haga scroll
-        setIsSpacebarDrawing(true);
-        // Cuando se presiona la barra espaciadora, coloca un píxel en la posición actual del ratón
-        const { x, y } = mouseCoordsOnCanvasRef.current;
-        if (x !== -1 && y !== -1 && x >= 0 && x < WORLD_WIDTH_TILES && y >= 0 && y < WORLD_HEIGHT_TILES) {
-          sendPlacePixelRequest(x, y);
-        }
-      }
-    };
-
-    const handleKeyUp = (e) => {
-      if (e.code === 'Space' && isSpacebarDrawing) {
-        setIsSpacebarDrawing(false);
-        lastPixelPlacedRef.current = { x: -1, y: -1 }; // Resetear para la barra espaciadora
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    });
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      socket.off('game_update');
+      socket.off('notification');
+      socket.off('special_effect');
     };
-  }, [isSpacebarDrawing, sendPlacePixelRequest]);
+  }, []);
 
-  // Efecto para dibujar con la barra espaciadora (continuamente mientras está presionada)
-  useEffect(() => {
-    let spacebarDrawingInterval;
-    if (isSpacebarDrawing && isLoggedIn) {
-      spacebarDrawingInterval = setInterval(() => {
-        // Usa las últimas coordenadas conocidas del ratón para dibujar
-        const { x, y } = mouseCoordsOnCanvasRef.current;
-        if (x !== -1 && y !== -1 && x >= 0 && x < WORLD_WIDTH_TILES && y >= 0 && y < WORLD_HEIGHT_TILES) {
-          sendPlacePixelRequest(x, y);
-        }
-      }, 50); // Ajusta la velocidad de "trazo" con la barra espaciadora
-    } else {
-      clearInterval(spacebarDrawingInterval);
-    }
-    return () => clearInterval(spacebarDrawingInterval);
-  }, [isSpacebarDrawing, isLoggedIn, sendPlacePixelRequest]);
+  // --- HANDLERS ---
 
+  const handleJoin = (avatar) => {
+    if (!myName.trim()) return alert("Por favor escribe tu nombre");
+    socket.emit('join_house', { name: myName, avatar });
+    setHasJoined(true);
+  };
 
-  // --- Manejador para el Registro de Usuario ---
-  const handleRegister = useCallback(() => {
-    if (socket && username.trim() && password.trim()) {
-      console.log('Emitting register event...');
-      socket.emit('register', { username, password });
-      setAuthMessage('Registrando...');
-    } else {
-      setAuthMessage('Por favor, introduce usuario y contraseña.');
-    }
-  }, [socket, username, password]);
+  const moveTo = (roomId) => {
+    socket.emit('move_room', roomId);
+  };
 
-  // --- Manejador para el Inicio de Sesión de Usuario ---
-  const handleLogin = useCallback(() => {
-    if (socket && username.trim() && password.trim()) {
-      console.log('Emitting login event...');
-      socket.emit('login', { username, password });
-      setAuthMessage('Iniciando sesión...');
-    } else {
-      setAuthMessage('Por favor, introduce usuario y contraseña.');
-    }
-  }, [socket, username, password]);
+  const interactPet = (action) => {
+    socket.emit('interact_pet', action);
+  };
 
+  const sendKiss = () => {
+    socket.emit('send_kiss');
+  };
 
-  // --- Renderizado Condicional: Pantalla de Inicio o Juego ---
-  if (!isLoggedIn) {
+  // --- RENDERIZADO: PANTALLA DE LOGIN ---
+  if (!hasJoined) {
     return (
-      <div className="start-screen">
-        <h1 className="game-title">Pixel Canvas</h1>
-        <p className="tagline">¡Un lienzo gigante para todos!</p>
-        <div className="input-group">
-          <label htmlFor="username">Usuario:</label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Introduce tu usuario"
-            maxLength="20"
+      <div className="login-container">
+        <div className="login-card">
+          <Heart className="login-icon" size={60} fill="#ec4899" />
+          <h1>Nuestro Nido</h1>
+          <p>Ingresa para ver a tu pareja</p>
+          
+          <input 
+            type="text" 
+            placeholder="Tu nombre..." 
+            value={myName}
+            onChange={(e) => setMyName(e.target.value)}
           />
+          
+          <div className="avatar-selection">
+            <p>Elige tu personaje:</p>
+            <div className="avatars">
+              {['👩', '👨', '🧑', '👱‍♀️', '🧔'].map((av) => (
+                <button key={av} onClick={() => handleJoin(av)}>{av}</button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="input-group">
-          <label htmlFor="password">Contraseña:</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Introduce tu contraseña"
-            maxLength="30"
-          />
-        </div>
-        <button onClick={handleLogin} className="join-button">Iniciar Sesión</button>
-        <button onClick={handleRegister} className="register-button">Registrarme</button>
-        {authMessage && <p className="start-message">{authMessage}</p>}
       </div>
     );
   }
 
-  // --- Renderizado del Juego (una vez logueado) ---
-  return (
-    <div className="game-container">
-      {/* Banner de información en la parte superior */}
-      <div className="info-banner">
-        <h3>Pixel Canvas</h3>
-        <p>Usuario: <strong>{username}</strong></p>
-        <p>Créditos de píxeles: <strong>{pixelCredits}</strong></p>
-        {authMessage && <p className="game-message">{authMessage}</p>}
-      </div>
+  // --- RENDERIZADO: CARGANDO ---
+  if (!gameState) return <div className="loading">Cargando la casa...</div>;
 
-      <div className="main-content">
-        {/* El elemento Canvas donde se dibujan los píxeles */}
-        <canvas
-          ref={canvasRef}
-          width={WORLD_WIDTH_TILES * TILE_SIZE}
-          height={WORLD_HEIGHT_TILES * TILE_SIZE}
-          className="pixel-canvas"
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp} 
-        />
-        {/* Selector de color */}
-        <div className="color-selector">
-          <input
-            type="color"
-            value={selectedColor}
-            onChange={(e) => setSelectedColor(e.target.value)}
-            title="Selecciona un color"
-          />
+  const myPlayer = gameState.players[socket.id];
+  const pet = gameState.pet;
+
+  // --- RENDERIZADO: JUEGO PRINCIPAL ---
+  return (
+    <div className="app-container">
+      
+      {/* NOTIFICACIONES FLOTANTES */}
+      {notification && <div className="notification-toast">{notification}</div>}
+
+      {/* HEADER: ESTADO DE LA CASA */}
+      <header className="header">
+        <div className="house-title">
+          <Home size={20} /> Casa de Nosotros
         </div>
-      </div>
+        <div className="love-meter">
+          <Heart size={20} fill="white" /> {gameState.loveMeter}% Amor
+        </div>
+      </header>
+
+      {/* SECCIÓN MASCOTA */}
+      <section className="pet-section">
+        <div className="pet-card">
+          <div className="pet-icon">
+            {pet.type === 'cat' ? <Cat size={40}/> : <Dog size={40}/>}
+          </div>
+          <div className="pet-info">
+            <h3>{pet.name}</h3>
+            
+            <div className="stat-row">
+              <span>Hambre</span>
+              <div className="progress-bar">
+                <div className="fill hunger" style={{width: `${pet.hunger}%`}}></div>
+              </div>
+            </div>
+
+            <div className="stat-row">
+              <span>Felicidad</span>
+              <div className="progress-bar">
+                <div className="fill happiness" style={{width: `${pet.happiness}%`}}></div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="pet-actions">
+            <button onClick={() => interactPet('feed')} title="Alimentar">🍖</button>
+            <button onClick={() => interactPet('play')} title="Jugar">🎾</button>
+          </div>
+        </div>
+      </section>
+
+      {/* GRID DE HABITACIONES */}
+      <main className="rooms-grid">
+        {ROOMS.map((room) => {
+          // Filtrar quién está en esta habitación
+          const playersHere = Object.values(gameState.players).filter(p => p.room === room.id);
+          const isMyRoom = myPlayer?.room === room.id;
+
+          return (
+            <div 
+              key={room.id} 
+              className={`room-card ${isMyRoom ? 'active-room' : ''}`}
+              style={{ backgroundColor: room.color }}
+              onClick={() => moveTo(room.id)}
+            >
+              <div className="room-header">
+                <span>{room.name}</span>
+                {room.icon}
+              </div>
+
+              <div className="players-container">
+                {playersHere.map((p) => (
+                  <div key={p.id} className="player-avatar">
+                    <span className="avatar-emoji">{p.avatar}</span>
+                    <span className="player-name">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+              
+              {isMyRoom && <div className="action-tag">{myPlayer.action}</div>}
+            </div>
+          );
+        })}
+      </main>
+
+      {/* CONTROLES INFERIORES */}
+      <footer className="footer-controls">
+        <button className="big-button kiss-btn" onClick={sendKiss}>
+          <Heart fill="currentColor" /> Enviar Beso
+        </button>
+        <button className="big-button gift-btn" onClick={() => alert('Próximamente')}>
+          <Gift /> Regalo
+        </button>
+      </footer>
+
     </div>
   );
 }
