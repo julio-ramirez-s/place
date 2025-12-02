@@ -6,7 +6,7 @@ import './App.css';
 // IMPORTANTE: Cuando despliegues en Render, debes cambiar 'http://localhost:3001' 
 // por la URL de tu servicio de backend (server.js) desplegado.
 const SERVER_URL = process.env.NODE_ENV === 'production' 
-  ? 'TU_URL_DEL_BACKEND_RENDER' // Reemplaza esto con la URL real de tu servidor
+  ? 'https://place-server.onrender.com' // Reemplaza esto con la URL real de tu servidor
   : 'https://place-server.onrender.com';
 
 const socket = io(SERVER_URL);
