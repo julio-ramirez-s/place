@@ -3,8 +3,13 @@ import io from 'socket.io-client';
 import { Heart, Home, Moon, Sun, Utensils, Tv, Cat, Dog, Gift } from 'lucide-react';
 import './App.css';
 
-// Conexión al backend (Asegúrate de que coincida con el puerto del server.js)
-const socket = io('https://place-server.onrender.com');
+// IMPORTANTE: Cuando despliegues en Render, debes cambiar 'http://localhost:3001' 
+// por la URL de tu servicio de backend (server.js) desplegado.
+const SERVER_URL = process.env.NODE_ENV === 'production' 
+  ? 'TU_URL_DEL_BACKEND_RENDER' // Reemplaza esto con la URL real de tu servidor
+  : 'https://place-server.onrender.com';
+
+const socket = io(SERVER_URL);
 
 // Configuración de las habitaciones
 const ROOMS = [
@@ -22,27 +27,26 @@ function App() {
 
   // --- EFECTOS DE SOCKET ---
   useEffect(() => {
-    // Escuchar actualizaciones del estado del juego
+    socket.on('connect', () => console.log('Conectado al servidor Socket.io'));
+    
     socket.on('game_update', (data) => {
       setGameState(data);
     });
 
-    // Escuchar notificaciones de texto
     socket.on('notification', (msg) => {
       setNotification(msg);
       setTimeout(() => setNotification(''), 3000);
     });
 
-    // Escuchar efectos especiales (Besos)
     socket.on('special_effect', (data) => {
       if (data.type === 'kiss') {
         setNotification(`¡${data.from} te envió un beso! 💋`);
-        // Aquí podrías disparar confeti o una animación CSS
         setTimeout(() => setNotification(''), 4000);
       }
     });
 
     return () => {
+      socket.off('connect');
       socket.off('game_update');
       socket.off('notification');
       socket.off('special_effect');
@@ -53,6 +57,7 @@ function App() {
 
   const handleJoin = (avatar) => {
     if (!myName.trim()) return alert("Por favor escribe tu nombre");
+    // Emitir el evento de unirse con el ID del socket
     socket.emit('join_house', { name: myName, avatar });
     setHasJoined(true);
   };
@@ -99,7 +104,7 @@ function App() {
   }
 
   // --- RENDERIZADO: CARGANDO ---
-  if (!gameState) return <div className="loading">Cargando la casa...</div>;
+  if (!gameState || !gameState.players[socket.id]) return <div className="loading">Cargando la casa...</div>;
 
   const myPlayer = gameState.players[socket.id];
   const pet = gameState.pet;
@@ -157,7 +162,7 @@ function App() {
         {ROOMS.map((room) => {
           // Filtrar quién está en esta habitación
           const playersHere = Object.values(gameState.players).filter(p => p.room === room.id);
-          const isMyRoom = myPlayer?.room === room.id;
+          const isMyRoom = myPlayer.room === room.id; // Uso myPlayer en lugar de la variable local
 
           return (
             <div 
@@ -191,7 +196,7 @@ function App() {
         <button className="big-button kiss-btn" onClick={sendKiss}>
           <Heart fill="currentColor" /> Enviar Beso
         </button>
-        <button className="big-button gift-btn" onClick={() => alert('Próximamente')}>
+        <button className="big-button gift-btn" onClick={() => setNotification('Función de regalo próxima!')}>
           <Gift /> Regalo
         </button>
       </footer>
